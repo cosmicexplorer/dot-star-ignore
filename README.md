@@ -1,12 +1,12 @@
 .*ignore
 =======
 
-A module to traverse directories of git repositories according to `.gitignore` (and other specified) files. Written because I couldn't figure out how to use any of the other options.
+A module to traverse directories of git repositories according to `.gitignore` (and other specified files). Written because I couldn't figure out how to use any of the other options. Made for use in [cpm](https://github.com/cosmicexplorer/cpm).
 
 # Usage
 ```javascript
-var DoIgnore = require('dot-star-ignore');
-DoIgnore('.', function (err, files) {
+var ignore = require('dot-star-ignore');
+ignore('.', function (err, files) {
   if (err) { console.error(err); }
   else {
     console.log("files tracked by git in folder '.': ");
@@ -17,10 +17,10 @@ DoIgnore('.', function (err, files) {
 
 # API
 ```javascript
-function Ignore(dir, [options,] callback) {
+function ignore(dir, [options,] callback) {
 ```
 
-- `dir`: root directory to perform traversal on. `DoIgnore` follows symlinks, so ensure your directory tree is not cyclical.
+- `dir`: root directory to perform traversal on. `ignore` follows symlinks, so ensure your directory tree is not cyclical.
 - `options` is an object with parameters:
   - `invert`: if truthy, returns files (or function, if `filter` is on) *matching* the ignored patterns, instead of ignoring the patterns.
   - `ignoreFiles`: array of `IgnoreFile` objects, which are specified [below](#ignorefile).
@@ -41,7 +41,7 @@ new IgnoreFile(
 ```
 
 - `name`: exact text matching ignore file; `.gitignore`, `.npmignore`, etc. Matches filenames, not their paths (so `../.gitignore` isn't allowed).
-- `precedence`: positive integer specifying which files take precedence over others. If two IgnoreFile objects have the same precedence, the resulting behavior is undefined.
+- `precedence`: positive integer specifying which files take precedence over others. If two `IgnoreFile` objects have the same precedence, the resulting behavior is undefined.
 
 
 ## IgnorePattern
@@ -59,3 +59,7 @@ new IgnorePattern(
 - `precedence`: as in `IgnoreFile`
 - `negated`: whether the pattern had a `!` at front in the ignore file
 - `directory`: base directory where pattern takes effect
+
+# License
+
+[GPLv3 or any later version](GPL.md)
