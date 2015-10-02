@@ -24,9 +24,9 @@ function DSIgnore(dir, [options,] callback) {
 - `options` is an object with parameters:
   - `invert`: if truthy, returns files (or function, if `filter` is on) *matching* the ignored patterns, instead of ignoring the patterns.
   - `ignoreFiles`: array of `IgnoreFile` objects, which are specified [below](#ignorefile).
-    - defaults to `[{name: '.gitignore', precedence: 0}]`.
+    - defaults to `[new IgnoreFile('.gitignore', 0)]`.
   - `patterns`: array of `IgnorePattern` objects, which are specified [below](#ignorepattern).
-    - defaults to `[{pattern: '.git/', precedence: 0, positive: true}]`.
+    - defaults to `[new IgnorePattern('.git/', 0, true)]`.
 - `callback(err, files)`: bubbles up all `fs` errors, returns matched files.
 
 # Objects
@@ -34,10 +34,10 @@ function DSIgnore(dir, [options,] callback) {
 ## IgnoreFile
 
 ```javascript
-{
+new DSIgnore.IgnoreFile(
   name, // string
   precedence // integer
-}
+)
 ```
 
 - `name`: exact text matching ignore file; `.gitignore`, `.npmignore`, etc. Matches filenames, not their paths (so `../.gitignore` isn't allowed).
@@ -47,13 +47,15 @@ function DSIgnore(dir, [options,] callback) {
 ## IgnorePattern
 
 ```javascript
-{
+new DSIgnore.IgnorePattern(
   pattern, // string
   precedence, // integer
-  negated // boolean
-}
+  negated, // boolean
+  directory // string
+)
 ```
 
 - `pattern`: glob pattern, taken relative to the directory of the file the pattern was found in
 - `precedence`: as in `IgnoreFile`
 - `negated`: whether the pattern had a `!` at front in the ignore file
+- `directory`: base directory where pattern takes effect

@@ -25,6 +25,8 @@
   },
   "homepage": "https://github.com/cosmicexplorer/dot-star-ignore#readme",
   "dependencies": {
-    "glob": "^5.0.15"
+    "async": "^1.4.2",
+    "glob": "^5.0.15",
+    "lodash": "^3.10.1"
   }
 }
