@@ -5,8 +5,8 @@ A module to traverse directories of git repositories according to `.gitignore` (
 
 # Usage
 ```javascript
-var DSIgnore = require('dot-star-ignore');
-DSIgnore('.', function (err, files) {
+var DoIgnore = require('dot-star-ignore');
+DoIgnore('.', function (err, files) {
   if (err) { console.error(err); }
   else {
     console.log("files tracked by git in folder '.': ");
@@ -17,10 +17,10 @@ DSIgnore('.', function (err, files) {
 
 # API
 ```javascript
-function DSIgnore(dir, [options,] callback) {
+function Ignore(dir, [options,] callback) {
 ```
 
-- `dir`: root directory to perform traversal on. `DSIgnore` follows symlinks, so ensure your directory tree is not cyclical.
+- `dir`: root directory to perform traversal on. `DoIgnore` follows symlinks, so ensure your directory tree is not cyclical.
 - `options` is an object with parameters:
   - `invert`: if truthy, returns files (or function, if `filter` is on) *matching* the ignored patterns, instead of ignoring the patterns.
   - `ignoreFiles`: array of `IgnoreFile` objects, which are specified [below](#ignorefile).
@@ -34,7 +34,7 @@ function DSIgnore(dir, [options,] callback) {
 ## IgnoreFile
 
 ```javascript
-new DSIgnore.IgnoreFile(
+new IgnoreFile(
   name, // string
   precedence // integer
 )
@@ -47,7 +47,7 @@ new DSIgnore.IgnoreFile(
 ## IgnorePattern
 
 ```javascript
-new DSIgnore.IgnorePattern(
+new IgnorePattern(
   pattern, // string
   precedence, // integer
   negated, // boolean

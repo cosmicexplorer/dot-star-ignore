@@ -109,7 +109,7 @@ recurseIgnore = ({invert, ignoreFileObjs}, cb) ->
       when 0 then cb null, matchFiles
       else async.map matchDirs,
         ((matchedDir, mcb) ->
-          DSIgnore matchedDir, {invert, ignoreFileObjs, patterns}, (err, res) ->
+          DoIgnore matchedDir, {invert, ignoreFileObjs, patterns}, (err, res) ->
             if err then mcb err else mcb null, {matchedDir, res}),
         (err, results) ->
           cleaned = results.filter ({matchedDir, res}) -> res.length > 0
@@ -119,7 +119,7 @@ recurseIgnore = ({invert, ignoreFileObjs}, cb) ->
             cleanedFiles = cleaned.map ({matchedDir, res}) -> res
             cb null, lo.uniq matchFiles.concat files, cleanedDirs, cleanedFiles
 
-DSIgnore = optionalOpts (dir, opts = {}, cb) ->
+DoIgnore = optionalOpts (dir, opts = {}, cb) ->
   {
     invert = no                         # immutable
     ignoreFileObjs = defaultIgnoreFiles # immutable
