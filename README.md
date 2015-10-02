@@ -22,13 +22,16 @@ function DSIgnore(dir, [options,] callback) {
 
 - `dir`: root directory to perform traversal on. `DSIgnore` follows symlinks, so ensure your directory tree is not cyclical.
 - `options` is an object with parameters:
-  - `filter`: if truthy, returns function recognizing pathnames, instead of the tracked paths
   - `invert`: if truthy, returns files (or function, if `filter` is on) *matching* the ignored patterns, instead of ignoring the patterns.
-  - `ignoreFiles`: array of `IgnoreFile` objects, which are specified [below](#IgnoreFile). Defaults to [{name: '.gitignore', precedence: 0}].
-  - `patterns`: array of `IgnorePattern` objects, which are specified [below](#IgnorePattern). Defaults to [{pattern: '.git/', precedence: 0, positive: true}].
-- `callback(err, files)`: bubbles up all `fs` errors. `files` is a function if `invert` is specified in options.
+  - `ignoreFiles`: array of `IgnoreFile` objects, which are specified [below](#ignorefile).
+    - defaults to `[{name: '.gitignore', precedence: 0}]`.
+  - `patterns`: array of `IgnorePattern` objects, which are specified [below](#ignorepattern).
+    - defaults to `[{pattern: '.git/', precedence: 0, positive: true}]`.
+- `callback(err, files)`: bubbles up all `fs` errors, returns matched files.
 
-# IgnoreFile
+# Objects
+
+## IgnoreFile
 
 ```javascript
 {
@@ -41,7 +44,7 @@ function DSIgnore(dir, [options,] callback) {
 - `precedence`: positive integer specifying which files take precedence over others. If two IgnoreFile objects have the same precedence, the resulting behavior is undefined.
 
 
-# IgnorePattern
+## IgnorePattern
 
 ```javascript
 {
