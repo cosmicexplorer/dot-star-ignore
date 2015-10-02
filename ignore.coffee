@@ -129,7 +129,7 @@ DSIgnore = optionalOpts (dir, opts = {}, cb) ->
     ((wcb) -> fs.readdir dir, wcb)
     getNewIgnoreFiles ignoreFileObjs
     getNewPatterns dir
-    # apply patterns
+    # append to old patterns
     (files, ignorePatternsFromDir, wcb) ->
       patterns = patterns.concat ignorePatternsFromDir
       wcb null, files, patterns
