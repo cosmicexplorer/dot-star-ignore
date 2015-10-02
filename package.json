@@ -1,0 +1,30 @@
+{
+  "name": "dot-star-ignore",
+  "version": "0.0.0",
+  "description": "Traverse directories of git repositories according to `.gitignore` files.",
+  "main": "ignore.js",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/cosmicexplorer/dot-star-ignore.git"
+  },
+  "keywords": [
+    "ignore",
+    "gitignore",
+    "npmignore",
+    "file",
+    "traversal",
+    "directory",
+    "git",
+    "npm",
+    "cpm"
+  ],
+  "author": "Danny McClanahan <danieldmcclanahan@gmail.com>",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/cosmicexplorer/dot-star-ignore/issues"
+  },
+  "homepage": "https://github.com/cosmicexplorer/dot-star-ignore#readme",
+  "dependencies": {
+    "glob": "^5.0.15"
+  }
+}
