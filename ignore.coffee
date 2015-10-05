@@ -94,7 +94,7 @@ applyPatterns = (files, patterns, cb) -> async.filter files,
     else
       max = lo.max pats, 'precedence'
       patsOfHighestPrecedence = pats.filter (p) -> p.precedence is max
-      fcb null, invert is patsOfHighestPrecedence[0].negated),
+      fcb null, invert is (lo.last patsOfHighestPrecedence).negated),
   currySecond patterns, cb
 
 splitFilesDirectories = (patterns, nextFiles, cb) -> async.filter nextFiles,
