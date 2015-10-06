@@ -102,6 +102,8 @@ splitFilesDirectories = (patterns, nextFiles, cb) -> async.filter nextFiles,
   (err, dirMatches) -> if err then wcb err
   else cb null, (lo.without nextFiles, dirMatches...), dirMatches, patterns
 
+mapToProperty = (prop, l) -> l.map (it) -> it[prop]
+
 recurseIgnore = ({invert, ignoreFileObjs}, cb) ->
   (err, matchFiles, matchDirs, patterns) ->
     if err then cb err
@@ -115,8 +117,8 @@ recurseIgnore = ({invert, ignoreFileObjs}, cb) ->
           cleaned = results.filter ({matchedDir, res}) -> res.length > 0
           if matchFiles.length is cleaned.length is 0 then cb null, []
           else
-            cleanedDirs = cleaned.map ({matchedDir, res}) -> matchedDir
-            cleanedFiles = cleaned.map ({matchedDir, res}) -> res
+            cleanedDirs = mapToProperty 'matchedDir', cleaned
+            cleanedFiles = mapToProperty 'res', cleaned
             cb null, lo.uniq matchFiles.concat files, cleanedDirs, cleanedFiles
 
 DoIgnore = optionalOpts (dir, opts = {}, cb) ->
