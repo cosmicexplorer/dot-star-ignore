@@ -34,6 +34,8 @@ Returns object with keys `files` and `dirs`, containing the files and directorie
 
 ## IgnoreFile
 
+This class represents a file which provides `.gitignore`-like wildcard patterns to ignore from the current directory, and directories below it.
+
 ```javascript
 new IgnoreFile(
   name, // string
@@ -62,6 +64,8 @@ ignore.getIgnored(<dir>, {ignoreFiles: ignoreFiles}, <callback>);
 Then, patterns in `.npmignore` files will take precedence over `.gitignore` patterns in the same directory.
 
 ## IgnorePattern
+
+This class represents a pattern drawn from a `.gitignore`-like file. It creates a regular expression and matches it against files encountered in the file system during the operation of `getIgnored`.
 
 ```javascript
 new IgnorePattern(
