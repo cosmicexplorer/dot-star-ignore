@@ -9,37 +9,42 @@ nonRecursiveRegex = /^!?\//g
 negateOrNonRecursiveRegex = /^(!|\/)\/?/g
 commentRegex = /^#/g
 directoryRegex = /\/$/g
+nonSpaceRegex = /[^\s]/g
 
-getIsntDirectoryWaterfall = (f) -> [
-  (wcb) -> fs.stat f, wcb
-  (stats, wcb) -> wcb null, not stats.isDirectory()]
+getIsntDirectoryWaterfall = (f, fcb, negate) ->
+  async.waterfall [
+    (wcb) -> fs.stat f, wcb
+    (stats, wcb) ->
+      res = stats.isDirectory()
+      wcb null, (if negate then res else not res)],
+    (err, res) -> if err then fcb false else fcb res
 
 class IgnoreFile
   constructor: (@name, @precedence) ->
   matches: (files, cb) ->
-    # lambda used so the index which is the second arg to map is unused
-    matches = files.map((f) -> path.basename f).filter (f) -> f is @name
+    matches = files.filter (f) => (path.basename f) is @name
     async.filter matches,
       # directories can't be ignore files
-      ((f, fcb) -> async.waterfall (getIsntDirectoryWaterfall f), fcb),
-      (err, res) -> if err then cb err else cb null, res.map (file) ->
-        {file, ignoreFileObj: @}
+      getIsntDirectoryWaterfall,
+      (res) => cb null, res.map (file) => {file, ignoreFileObj: @}
   toIgnorePatterns: (dir, contents) ->
     contents.split('\n').map((line) -> line.trim())
       .filter((line) -> not line.match commentRegex)
+      .filter((line) -> line.match nonSpaceRegex)
       .map (line) => new IgnorePattern
-        pattern: (line.replace negateOrNonRecursiveRegex, "")
+        pattern: line.replace(negateOrNonRecursiveRegex, "").replace(
+          directoryRegex, "")
         precedence: @precedence
-        negated: (line.match negateRegex)
+        negated: if (line.match negateRegex) then yes else no
         dir: dir
-        recursive: (not line.match nonRecursiveRegex),
-        needsDirectory: (line.match directoryRegex)
+        recursive: (not line.match nonRecursiveRegex)
+        needsDirectory: if (line.match directoryRegex) then yes else no
 
 regexFromIgnore = (pattern, flags) ->
-  new RegExp pattern.split('').map((c) -> switch c
+  new RegExp ('^' + pattern.split('').map((c) -> switch c
     when '*' then '.*'
     when '[', ']' then c
-    else lo.escapeRegExp c).join(''), flags
+    else lo.escapeRegExp c).join('') + '$'), flags
 
 fileDeeperThanDir = (file, dir) ->
   (path.dirname path.relative dir, file) isnt '.'
@@ -49,11 +54,10 @@ class IgnorePattern
     @needsDirectory}) ->
     @reg = regexFromIgnore (path.join @dir, @pattern), 'g'
   matches: (file, cb) -> switch
-    when not file.match @reg then cb null, no
-    when fileDeeperThanDir file, @dir and not @recursive then cb null, no
-    when @needsDirectory then fs.stat file, (err, stats) ->
-      if err then cb err else cb null, stats.isDirectory()
-    else cb null, yes
+    when not file.match @reg then cb no
+    when (fileDeeperThanDir file, @dir) and not @recursive then cb no
+    when @needsDirectory then getIsntDirectoryWaterfall file, cb, yes
+    else cb yes
 
 defaultIgnoreFiles = [new IgnoreFile '.gitignore', 0]
 defaultPatterns = (dir) -> [new IgnorePattern
@@ -73,56 +77,87 @@ cloneOpts = ({invert, ignoreFileObjs, patterns}) ->
 currySecond = (args..., fn) -> (fnArgs...) ->
   fn fnArgs[0], args..., fnArgs[1..]...
 
-getNewIgnoreFiles = (ignoreFileObjs) -> (files, cb) -> async.map ignoreFileObjs,
-  ((ignoreFile, mcb) -> ignoreFile.matches files, mcb),
-  currySecond files, cb
+getNewIgnoreFiles = (dir, ignoreFileObjs) -> (files, cb) ->
+  files = files.map (f) -> path.join dir, f
+  async.map ignoreFileObjs,
+    ((ignoreFile, mcb) ->
+      ignoreFile.matches files, mcb),
+    (err, res) -> cb err, files, lo.flatten res
 
 getNewPatterns = (dir) -> (files, ignoreFilesFromDir, cb) ->
-  console.log arguments
+  console.log 'g:' + JSON.stringify arguments
   newIgnoreFiles = lo.uniq ignoreFilesFromDir, no, 'file'
   async.map newIgnoreFiles, (({file, ignoreFileObj}, mcb) ->
     fs.readFile file, (err, res) -> if err then mcb err
     else
       pats = ignoreFileObj.toIgnorePatterns dir, res.toString()
       mcb null, pats),
-    currySecond files, cb
+    (err, res) -> cb err, files, lo.flatten res
 
-applyPatterns = (invert) -> (files, patterns, cb) -> async.filter files,
-  ((file, fcb) -> async.filter patterns,
-    ((pat, fcb2) -> pat.matches file, fcb2),
-    (err, pats) -> if err then fcb err
-    else
-      max = lo.max pats, 'precedence'
-      patsOfHighestPrecedence = pats.filter (p) -> p.precedence is max
-      fcb null, invert is (lo.last patsOfHighestPrecedence).negated)
-  currySecond patterns, cb
+getMaxOfProp = (prop, arr) ->
+  max = -Infinity
+  for el in arr
+    if el[prop] > max then max = el[prop]
+  max
 
-splitFilesDirectories = (patterns, nextFiles, cb) -> async.filter nextFiles,
-  ((f, fcb) -> async.waterfall [
-    ((wcb) -> fs.stat f, wcb),
-    ((s, wcb) -> wcb null, s.isDirectory())],
-    fcb),
-  (err, dirMatches) -> if err then cb err
-  else cb null, (lo.without nextFiles, dirMatches...), dirMatches, patterns
+applyPatterns = (invert) -> (files, patterns, cb) ->
+  console.log 'patterns:' + JSON.stringify arguments
+  async.filter files,
+    ((file, fcb) -> async.filter patterns,
+      ((pat, fcb2) ->
+        # console.log 'patMatch:' + JSON.stringify [pat, file]
+        pat.matches file, fcb2),
+      (pats) ->
+        if pats.length is 0 then fcb yes
+        else
+          max = getMaxOfProp 'precedence', pats
+          patsOfHighestPrecedence = pats.filter (p) -> p.precedence is max
+          console.log 'finalPats:' +
+            JSON.stringify [file, pats, max, patsOfHighestPrecedence]
+          fcb invert isnt (lo.last patsOfHighestPrecedence).negated),
+    (results) ->
+      console.log 'resultsFromPatterns:' + JSON.stringify results
+      cb null, patterns, results
+
+splitFilesDirectories = (patterns, nextFiles, cb) ->
+  async.filter nextFiles,
+    ((f, fcb) -> getIsntDirectoryWaterfall f, fcb, yes),
+    (dirMatches) ->
+      cb null,
+        files: (lo.without nextFiles, dirMatches...)
+        dirs: dirMatches
+        patterns: patterns
 
 mapToProperty = (prop, l) -> l.map (it) -> it[prop]
 
-recurseIgnore = ({invert, ignoreFileObjs}, cb) ->
-  (err, matchFiles, matchDirs, patterns) ->
+recurseIgnore = ({invert, ignoreFileObjs}, dir, cb) ->
+  (err, opts) ->
+    {
+      files: matchFiles
+      dirs: matchDirs
+      patterns
+    } = opts
+    console.log 'recurseArgs:' + JSON.stringify arguments
     if err then cb err
     else switch matchDirs.length
-      when 0 then cb null, matchFiles
+      when 0 then cb null, {files: matchFiles, dirs: []}
       else async.map matchDirs,
         ((matchedDir, mcb) ->
           DoIgnore matchedDir, {invert, ignoreFileObjs, patterns}, (err, res) ->
             if err then mcb err else mcb null, {matchedDir, res}),
         (err, results) ->
-          cleaned = results.filter ({matchedDir, res}) -> res.length > 0
-          if matchFiles.length is cleaned.length is 0 then cb null, []
+          if err then cb err
           else
-            cleanedDirs = mapToProperty 'matchedDir', cleaned
-            cleanedFiles = mapToProperty 'res', cleaned
-            cb null, lo.uniq matchFiles.concat cleanedDirs, cleanedFiles
+            console.log "results: #{JSON.stringify results}"
+            cleanedDirs = mapToProperty 'matchedDir', results
+            flattened = mapToProperty 'res', results
+            console.log "flattened: #{flattened}"
+            cleanedDirs = cleanedDirs.concat mapToProperty 'dirs', flattened
+            cleanedFiles = mapToProperty 'files', flattened
+            console.log "cleanedDirs: #{cleanedDirs}, files: #{cleanedFiles}"
+            cb null,
+              files: lo.uniq lo.flatten matchFiles.concat cleanedFiles
+              dirs: lo.uniq lo.flatten cleanedDirs
 
 DoIgnore = optionalOpts (dir, opts = {}, cb) ->
   {
@@ -132,12 +167,13 @@ DoIgnore = optionalOpts (dir, opts = {}, cb) ->
   } = opts
   async.waterfall [
     ((wcb) -> fs.readdir dir, wcb)
-    getNewIgnoreFiles ignoreFileObjs
+    getNewIgnoreFiles dir, ignoreFileObjs
     getNewPatterns dir
     # append to old patterns
     (files, ignorePatternsFromDir, wcb) ->
+      console.log 'lambda:' + JSON.stringify arguments
       patterns = patterns.concat ignorePatternsFromDir
       wcb null, files, patterns
     applyPatterns invert
     splitFilesDirectories],
-    recurseIgnore {invert, ignoreFileObjs}, cb
+    recurseIgnore {invert, ignoreFileObjs}, dir, cb
