@@ -68,12 +68,6 @@ defaultPatterns = (dir) -> [new IgnorePattern
   recursive: no
   needsDirectory: yes]
 
-optionalOpts = (fun) -> (arg, opts, cb) ->
-  if typeof opts is 'function' then fun arg, null, opts else fun arg, opts, cb
-
-cloneOpts = ({invert, ignoreFileObjs, patterns}) ->
-  {invert, ignoreFileObjs, patterns}
-
 getNewIgnoreFiles = (dir, ignoreFileObjs) -> (files, cb) ->
   files = files.map (f) -> path.join dir, f
   async.map ignoreFileObjs,
@@ -130,8 +124,8 @@ recurseIgnore = ({invert, ignoreFileObjs}, dir, cb) ->
       when 0 then cb null, {files: matchFiles, dirs: []}
       else async.map matchDirs,
         ((matchedDir, mcb) ->
-          DoIgnore matchedDir, {invert, ignoreFileObjs, patterns}, (err, res) ->
-            if err then mcb err else mcb null, {matchedDir, res}),
+          getIgnored matchedDir, {invert, ignoreFileObjs, patterns},
+            (err, res) -> if err then mcb err else mcb null, {matchedDir, res}),
         (err, results) ->
           if err then cb err
           else
@@ -143,7 +137,10 @@ recurseIgnore = ({invert, ignoreFileObjs}, dir, cb) ->
               files: lo.uniq lo.flatten matchFiles.concat cleanedFiles
               dirs: lo.uniq lo.flatten cleanedDirs
 
-DoIgnore = optionalOpts (dir, opts = {}, cb) ->
+optionalOpts = (fun) -> (arg, opts, cb) ->
+  if typeof opts is 'function' then fun arg, null, opts else fun arg, opts, cb
+
+getIgnored = optionalOpts (dir, opts = {}, cb) ->
   {
     invert = no                         # immutable
     ignoreFileObjs = defaultIgnoreFiles # immutable
@@ -162,6 +159,10 @@ DoIgnore = optionalOpts (dir, opts = {}, cb) ->
     recurseIgnore {invert, ignoreFileObjs}, dir, cb
 
 module.exports = {
-  DoIgnore
+  getIgnored
+  IgnoreFile
+  IgnorePattern
   regexFromIgnore
+  defaultIgnoreFiles
+  defaultPatterns
 }
