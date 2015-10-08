@@ -76,7 +76,7 @@ new IgnorePattern(
 )
 ```
 
-- `pattern`: glob pattern, taken relative to the directory of the file the pattern was found in
+- `pattern`: wildcard pattern, taken relative to the directory of the file the pattern was found in
 - `precedence`: as in `IgnoreFile`
 - `negated`: whether the pattern had a `!` at front in the ignore file
 - `directory`: base directory where pattern takes effect

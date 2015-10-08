@@ -1,6 +1,6 @@
 {
   "name": "dot-star-ignore",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Traverse directories of git repositories according to `.gitignore` files.",
   "main": "ignore.js",
   "repository": {
@@ -26,7 +26,6 @@
   "homepage": "https://github.com/cosmicexplorer/dot-star-ignore#readme",
   "dependencies": {
     "async": "^1.4.2",
-    "glob": "^5.0.15",
     "lodash": "^3.10.1"
   },
   "devDependencies": {
