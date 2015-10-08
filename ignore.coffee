@@ -17,7 +17,7 @@ getIsntDirectoryWaterfall = (f, fcb, negate) ->
     (stats, wcb) ->
       res = stats.isDirectory()
       wcb null, (if negate then res else not res)],
-    (err, res) -> if err then fcb false else fcb res
+    (err, res) -> if err then fcb no else fcb res
 
 class IgnoreFile
   constructor: (@name, @precedence) ->
