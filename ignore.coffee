@@ -74,9 +74,6 @@ optionalOpts = (fun) -> (arg, opts, cb) ->
 cloneOpts = ({invert, ignoreFileObjs, patterns}) ->
   {invert, ignoreFileObjs, patterns}
 
-currySecond = (args..., fn) -> (fnArgs...) ->
-  fn fnArgs[0], args..., fnArgs[1..]...
-
 getNewIgnoreFiles = (dir, ignoreFileObjs) -> (files, cb) ->
   files = files.map (f) -> path.join dir, f
   async.map ignoreFileObjs,
@@ -85,7 +82,6 @@ getNewIgnoreFiles = (dir, ignoreFileObjs) -> (files, cb) ->
     (err, res) -> cb err, files, lo.flatten res
 
 getNewPatterns = (dir) -> (files, ignoreFilesFromDir, cb) ->
-  console.log 'g:' + JSON.stringify arguments
   newIgnoreFiles = lo.uniq ignoreFilesFromDir, no, 'file'
   async.map newIgnoreFiles, (({file, ignoreFileObj}, mcb) ->
     fs.readFile file, (err, res) -> if err then mcb err
@@ -100,24 +96,16 @@ getMaxOfProp = (prop, arr) ->
     if el[prop] > max then max = el[prop]
   max
 
-applyPatterns = (invert) -> (files, patterns, cb) ->
-  console.log 'patterns:' + JSON.stringify arguments
-  async.filter files,
-    ((file, fcb) -> async.filter patterns,
-      ((pat, fcb2) ->
-        # console.log 'patMatch:' + JSON.stringify [pat, file]
-        pat.matches file, fcb2),
-      (pats) ->
-        if pats.length is 0 then fcb yes
-        else
-          max = getMaxOfProp 'precedence', pats
-          patsOfHighestPrecedence = pats.filter (p) -> p.precedence is max
-          console.log 'finalPats:' +
-            JSON.stringify [file, pats, max, patsOfHighestPrecedence]
-          fcb invert isnt (lo.last patsOfHighestPrecedence).negated),
-    (results) ->
-      console.log 'resultsFromPatterns:' + JSON.stringify results
-      cb null, patterns, results
+applyPatterns = (invert) -> (files, patterns, cb) -> async.filter files,
+  ((file, fcb) -> async.filter patterns,
+    ((pat, fcb2) -> pat.matches file, fcb2),
+    (pats) ->
+      if pats.length is 0 then fcb yes
+      else
+        max = getMaxOfProp 'precedence', pats
+        patsOfHighestPrecedence = pats.filter (p) -> p.precedence is max
+        fcb invert isnt (lo.last patsOfHighestPrecedence).negated),
+  (results) -> cb null, patterns, results
 
 splitFilesDirectories = (patterns, nextFiles, cb) ->
   async.filter nextFiles,
@@ -137,7 +125,6 @@ recurseIgnore = ({invert, ignoreFileObjs}, dir, cb) ->
       dirs: matchDirs
       patterns
     } = opts
-    console.log 'recurseArgs:' + JSON.stringify arguments
     if err then cb err
     else switch matchDirs.length
       when 0 then cb null, {files: matchFiles, dirs: []}
@@ -148,13 +135,10 @@ recurseIgnore = ({invert, ignoreFileObjs}, dir, cb) ->
         (err, results) ->
           if err then cb err
           else
-            console.log "results: #{JSON.stringify results}"
             cleanedDirs = mapToProperty 'matchedDir', results
             flattened = mapToProperty 'res', results
-            console.log "flattened: #{flattened}"
             cleanedDirs = cleanedDirs.concat mapToProperty 'dirs', flattened
             cleanedFiles = mapToProperty 'files', flattened
-            console.log "cleanedDirs: #{cleanedDirs}, files: #{cleanedFiles}"
             cb null,
               files: lo.uniq lo.flatten matchFiles.concat cleanedFiles
               dirs: lo.uniq lo.flatten cleanedDirs
@@ -171,7 +155,6 @@ DoIgnore = optionalOpts (dir, opts = {}, cb) ->
     getNewPatterns dir
     # append to old patterns
     (files, ignorePatternsFromDir, wcb) ->
-      console.log 'lambda:' + JSON.stringify arguments
       patterns = patterns.concat ignorePatternsFromDir
       wcb null, files, patterns
     applyPatterns invert
