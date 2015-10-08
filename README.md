@@ -5,7 +5,7 @@ A module to traverse directories of git repositories according to `.gitignore` (
 
 # Usage
 ```javascript
-require('dot-star-ignore').getIgnored('.', function (err, result) {
+require('dot-star-ignore').getTracked('.', function (err, result) {
   if (err) { console.error(err); }
   else {
     console.log("files tracked by git in folder '.': ");
@@ -16,12 +16,12 @@ require('dot-star-ignore').getIgnored('.', function (err, result) {
 
 # API
 ```javascript
-function getIgnored(dir, [options,] callback) {
+function getTracked(dir, [options,] callback) {
 ```
 
 - `dir`: root directory to perform traversal on. `ignore` follows symlinks, so ensure your directory tree is not cyclical. If `dir` is a relative path, it is assumed to be relative to `process.cwd()`.
 - `options` is an object with parameters:
-  - `invert`: if truthy, returns files (or function, if `filter` is on) *matching* the ignored patterns, instead of ignoring the patterns.
+  - `invert`: if truthy, returns files (or function, if `filter` is on) *matching* the ignored patterns, instead of files ignored by the patterns.
   - `ignoreFiles`: array of `IgnoreFile` objects, which are specified [below](#ignorefile).
     - defaults to `[new IgnoreFile('.gitignore', 0)]`.
   - `patterns`: array of `IgnorePattern` objects, which are specified [below](#ignorepattern).
@@ -58,14 +58,14 @@ Precedence starts from `0` and goes to `Infinity`. To implement something like n
 var ignore = require('dot-star-ignore');
 var newIgnoreFile = new ignore.IgnoreFile('.npmignore', 1);
 var ignoreFiles = ignore.defaultIgnoreFiles.concat(newIgnoreFile);
-ignore.getIgnored(<dir>, {ignoreFiles: ignoreFiles}, <callback>);
+ignore.getTracked(<dir>, {ignoreFiles: ignoreFiles}, <callback>);
 ```
 
 Then, patterns in `.npmignore` files will take precedence over `.gitignore` patterns in the same directory.
 
 ## IgnorePattern
 
-This class represents a pattern drawn from a `.gitignore`-like file. It creates a regular expression and matches it against files encountered in the file system during the operation of `getIgnored`.
+This class represents a pattern drawn from a `.gitignore`-like file. It creates a regular expression and matches it against files encountered in the file system during the operation of `getTracked`.
 
 ```javascript
 new IgnorePattern(

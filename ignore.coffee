@@ -124,7 +124,7 @@ recurseIgnore = ({invert, ignoreFileObjs}, dir, cb) ->
       when 0 then cb null, {files: matchFiles, dirs: []}
       else async.map matchDirs,
         ((matchedDir, mcb) ->
-          getIgnored matchedDir, {invert, ignoreFileObjs, patterns},
+          getTracked matchedDir, {invert, ignoreFileObjs, patterns},
             (err, res) -> if err then mcb err else mcb null, {matchedDir, res}),
         (err, results) ->
           if err then cb err
@@ -140,7 +140,7 @@ recurseIgnore = ({invert, ignoreFileObjs}, dir, cb) ->
 optionalOpts = (fun) -> (arg, opts, cb) ->
   if typeof opts is 'function' then fun arg, null, opts else fun arg, opts, cb
 
-getIgnored = optionalOpts (dir, opts = {}, cb) ->
+getTracked = optionalOpts (dir, opts = {}, cb) ->
   {
     invert = no                         # immutable
     ignoreFileObjs = defaultIgnoreFiles # immutable
@@ -159,7 +159,7 @@ getIgnored = optionalOpts (dir, opts = {}, cb) ->
     recurseIgnore {invert, ignoreFileObjs}, dir, cb
 
 module.exports = {
-  getIgnored
+  getTracked
   IgnoreFile
   IgnorePattern
   regexFromIgnore
