@@ -41,6 +41,8 @@ class IgnoreFile
         needsDirectory: if (line.match directoryRegex) then yes else no
 
 regexFromIgnore = (pattern, flags) ->
+  pattern = pattern.replace(negateOrNonRecursiveRegex, "")
+    .replace(directoryRegex, "")
   new RegExp ('^' + pattern.split('').map((c) -> switch c
     when '*' then '.*'
     when '[', ']' then c

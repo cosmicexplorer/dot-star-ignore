@@ -65,21 +65,25 @@ Then, patterns in `.npmignore` files will take precedence over `.gitignore` patt
 
 ## IgnorePattern
 
-This class represents a pattern drawn from a `.gitignore`-like file. It creates a regular expression and matches it against files encountered in the file system during the operation of `getTracked`.
+This class represents a pattern drawn from a `.gitignore`-like file. It creates a regular expression and matches it against files encountered in the file system during the operation of `getTracked`. Note that **all** of the below options should be given for the `IgnorePattern` constructor.
 
 ```javascript
-new IgnorePattern(
-  pattern, // string
-  precedence, // integer
-  negated, // boolean
-  directory // string
-)
+new IgnorePattern({
+  pattern: // string
+  precedence: // integer
+  negated: // boolean
+  dir: // string
+  recursive: // boolean
+  needsDirectory: // boolean
+})
 ```
 
-- `pattern`: wildcard pattern, taken relative to the directory of the file the pattern was found in
-- `precedence`: as in `IgnoreFile`
-- `negated`: whether the pattern had a `!` at front in the ignore file
-- `directory`: base directory where pattern takes effect
+- `pattern`: wildcard pattern, taken relative to the directory of the file the pattern was found in.
+- `precedence`: as in `IgnoreFile`.
+- `negated`: whether the pattern had a `!` at front in the ignore file.
+- `dir`: base directory where pattern takes effect.
+- `recursive`: whether the pattern is supposed to take effect for directories below `dir`.
+- `needsDirectory`: whether the pattern only applies to directories.
 
 ### Git Default
 
@@ -88,6 +92,22 @@ The default option for this is contained in `require('dot-star-ignore').defaultP
 ### Usage Notes
 
 Wildcards apply to all lower directories, just like the real git client! For non-recursive wildcarding, use `/<pattern>`. For example, to ignore `.js` files, but only in the folder containing a `.gitignore` file, use `/*.js` as the ignore pattern.
+
+To ignore a file named `ignore_me` (in addition to any patterns given in `.gitignore` or other files) in the current directory and lower by giving a pattern to `getTracked` (with precedence 0), do the following:
+
+```javascript
+var ignore = require('dot-star-ignore');
+var newIgnorePattern = new ignore.IgnorePattern({
+  pattern: 'ignore_me',
+  precedence: 0,
+  negated: false,
+  dir: '.',
+  recursive: true,
+  needsDirectory: false
+});
+var ignorePatterns = ignore.defaultPatterns.concat(newIgnorePattern);
+ignore.getTracked(<dir>, {patterns: ignorePatterns}, <callback>);
+```
 
 # Auxiliary Functions
 
