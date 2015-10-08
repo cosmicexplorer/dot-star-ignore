@@ -87,19 +87,22 @@ getNewPatterns = (dir) -> (files, ignoreFilesFromDir, cb) ->
       mcb null, pats),
     currySecond files, cb
 
-applyPatterns = (files, patterns, cb) -> async.filter files,
+applyPatterns = (invert) -> (files, patterns, cb) -> async.filter files,
   ((file, fcb) -> async.filter patterns,
     ((pat, fcb2) -> pat.matches file, fcb2),
     (err, pats) -> if err then fcb err
     else
       max = lo.max pats, 'precedence'
       patsOfHighestPrecedence = pats.filter (p) -> p.precedence is max
-      fcb null, invert is (lo.last patsOfHighestPrecedence).negated),
+      fcb null, invert is (lo.last patsOfHighestPrecedence).negated)
   currySecond patterns, cb
 
 splitFilesDirectories = (patterns, nextFiles, cb) -> async.filter nextFiles,
-  ((f, fcb) -> async.waterfall [fs.stat, (s, wcb2) -> s.isDirectory()], fcb),
-  (err, dirMatches) -> if err then wcb err
+  ((f, fcb) -> async.waterfall [
+    ((wcb) -> fs.stat f, wcb),
+    ((s, wcb) -> wcb null, s.isDirectory())],
+    fcb),
+  (err, dirMatches) -> if err then cb err
   else cb null, (lo.without nextFiles, dirMatches...), dirMatches, patterns
 
 mapToProperty = (prop, l) -> l.map (it) -> it[prop]
@@ -119,7 +122,7 @@ recurseIgnore = ({invert, ignoreFileObjs}, cb) ->
           else
             cleanedDirs = mapToProperty 'matchedDir', cleaned
             cleanedFiles = mapToProperty 'res', cleaned
-            cb null, lo.uniq matchFiles.concat files, cleanedDirs, cleanedFiles
+            cb null, lo.uniq matchFiles.concat cleanedDirs, cleanedFiles
 
 DoIgnore = optionalOpts (dir, opts = {}, cb) ->
   {
@@ -135,6 +138,6 @@ DoIgnore = optionalOpts (dir, opts = {}, cb) ->
     (files, ignorePatternsFromDir, wcb) ->
       patterns = patterns.concat ignorePatternsFromDir
       wcb null, files, patterns
-    applyPatterns
+    applyPatterns invert
     splitFilesDirectories],
     recurseIgnore {invert, ignoreFileObjs}, cb
