@@ -26,7 +26,7 @@ function getIgnored(dir, [options,] callback) {
     - defaults to `[new IgnoreFile('.gitignore', 0)]`.
   - `patterns`: array of `IgnorePattern` objects, which are specified [below](#ignorepattern).
     - defaults to `[new IgnorePattern('.git', 0, true)]`.
-- `callback(err, files)`: bubbles up all `fs` errors, returns matched files.
+- `callback(err, results)`: bubbles up all `fs` errors, returns matched files and directories.
 
 Returns object with keys `files` and `dirs`, containing the files and directories tracked (or not, if you use `invert`) by git (or whatever `ignoreFiles` you specify).
 
