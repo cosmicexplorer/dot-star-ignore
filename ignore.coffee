@@ -160,3 +160,8 @@ DoIgnore = optionalOpts (dir, opts = {}, cb) ->
     applyPatterns invert
     splitFilesDirectories],
     recurseIgnore {invert, ignoreFileObjs}, dir, cb
+
+module.exports = {
+  DoIgnore
+  regexFromIgnore
+}
