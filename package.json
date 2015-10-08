@@ -1,7 +1,8 @@
+
 {
   "name": "dot-star-ignore",
-  "version": "1.0.2",
-  "description": "Traverse directories of git repositories according to `.gitignore` files.",
+  "version": "1.0.3",
+  "description": "Get tracked files in git repositories.",
   "main": "ignore.js",
   "repository": {
     "type": "git",

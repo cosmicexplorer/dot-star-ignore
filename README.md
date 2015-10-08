@@ -1,7 +1,7 @@
 .*ignore
-=======
+========
 
-A module to traverse directories of git repositories according to `.gitignore` (and other specified files). Written because I couldn't figure out how to use any of the other options. Made for use in [cpm](https://github.com/cosmicexplorer/cpm).
+A module to get tracked files in git repositories (according to `.gitignore`), or other specified ignore files (`.npmignore`, etc). Written because I couldn't figure out how to use any of the other options. Made for use in [cpm](https://github.com/cosmicexplorer/cpm). A git repository is not required to use this module.
 
 # Usage
 ```javascript
