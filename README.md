@@ -5,11 +5,11 @@ A module to traverse directories of git repositories according to `.gitignore` (
 
 # Usage
 ```javascript
-require('dot-star-ignore').getIgnored('.', function (err, files) {
+require('dot-star-ignore').getIgnored('.', function (err, result) {
   if (err) { console.error(err); }
   else {
     console.log("files tracked by git in folder '.': ");
-    console.log(files.join('\n'));
+    console.log(result.files.join('\n'));
   }
 });
 ```
@@ -19,7 +19,7 @@ require('dot-star-ignore').getIgnored('.', function (err, files) {
 function getIgnored(dir, [options,] callback) {
 ```
 
-- `dir`: root directory to perform traversal on. `ignore` follows symlinks, so ensure your directory tree is not cyclical.
+- `dir`: root directory to perform traversal on. `ignore` follows symlinks, so ensure your directory tree is not cyclical. If `dir` is a relative path, it is assumed to be relative to `process.cwd()`.
 - `options` is an object with parameters:
   - `invert`: if truthy, returns files (or function, if `filter` is on) *matching* the ignored patterns, instead of ignoring the patterns.
   - `ignoreFiles`: array of `IgnoreFile` objects, which are specified [below](#ignorefile).
@@ -27,6 +27,8 @@ function getIgnored(dir, [options,] callback) {
   - `patterns`: array of `IgnorePattern` objects, which are specified [below](#ignorepattern).
     - defaults to `[new IgnorePattern('.git', 0, true)]`.
 - `callback(err, files)`: bubbles up all `fs` errors, returns matched files.
+
+Returns object with keys `files` and `dirs`, containing the files and directories tracked (or not, if you use `invert`) by git (or whatever `ignoreFiles` you specify).
 
 # Objects
 
@@ -44,7 +46,7 @@ new IgnoreFile(
 
 ### Git Default
 
-The default option for this is contained in `require('dot-star-ignore').defaultIgnoreFiles`.
+The default option for this is contained in `require('dot-star-ignore').defaultIgnoreFiles`, which is equivalent to `[new IgnoreFile('.gitignore', 0)]`.
 
 ### Usage Notes
 
@@ -77,11 +79,11 @@ new IgnorePattern(
 
 ### Git Default
 
-The default option for this is contained in `require('dot-star-ignore').defaultPatterns`.
+The default option for this is contained in `require('dot-star-ignore').defaultPatterns`, which is equivalent to `[new IgnorePattern('.git', 0, true)]`.
 
 ### Usage Notes
 
-Wildcards apply to all lower directories, just like the real git! For non-recursive wildcarding, use `/<pattern>`. For example, to ignore `.js` files in the folder containing a `.gitignore` file, use `/*.js` as the ignore pattern.
+Wildcards apply to all lower directories, just like the real git client! For non-recursive wildcarding, use `/<pattern>`. For example, to ignore `.js` files, but only in the folder containing a `.gitignore` file, use `/*.js` as the ignore pattern.
 
 # Auxiliary Functions
 
