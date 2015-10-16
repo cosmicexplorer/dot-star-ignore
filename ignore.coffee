@@ -41,7 +41,7 @@ class IgnoreFile
 
 # wildcard -> regex processing
 initNegateRegex = /^!/g
-initRecursiveRegex = /^\//g
+initRecursiveRegex = new RegExp "^#{path.sep}", 'g'
 finDirRegex = /\/\s*$/g
 
 regexFromWildcard = (pattern) ->
@@ -99,7 +99,7 @@ ignorePatternFromIgnoreLine = (line) ->
   # braces aren't allowed in .gitignore files, so escape
   line = line.replace /\{|\}/g, (res) -> "\\#{res}"
   reg = regexFromWildcard line
-  negReg = reg[..-2] + '(\\/.*)?$'
+  negReg = reg[..-2] + "(\\#{path.sep}.*)?$"
   reg = new RegExp reg, 'g'
   negReg = new RegExp negReg, 'g'
   console.log [reg, negReg]
@@ -133,7 +133,7 @@ class IgnorePattern
 
 defaultIgnoreFiles = [new IgnoreFile '.gitignore', 0]
 defaultPatterns = (dir) -> [new IgnorePattern
-  pattern: '.git/'
+  pattern: ".git#{path.sep}"
   precedence: 0
   dir: dir]
 
