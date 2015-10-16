@@ -8,7 +8,7 @@ async = require 'async'
 compose = (target, funs...) ->
   target = fun target for fun in funs
   target
-boolify = (res) -> if res then yes else no
+boolify = (res) -> not not res
 
 getIsntDirectoryWaterfall = (f, fcb, negate) ->
   async.waterfall [
@@ -112,7 +112,6 @@ class IgnorePattern
   constructor: ({@pattern, @precedence, @dir}) ->
     {@reg, @negated, @recursive, @needsDirectory} =
       ignorePatternFromIgnoreLine @pattern
-    console.log @reg
   matches: (file, cb) ->
     f = path.basename file
     pathSeqs = getRelativePathSequence @dir, file
@@ -152,7 +151,7 @@ getMaxOfProp = (prop, arr) ->
     if el[prop] > max then max = el[prop]
   max
 
-applyPatterns = (invert) -> (files, patterns, cb) -> async.filter files,
+applyPatterns = (files, patterns, cb) -> async.filter files,
   ((file, fcb) -> async.filter patterns,
     ((pat, fcb2) -> pat.matches file, fcb2),
     (pats) ->
@@ -160,7 +159,7 @@ applyPatterns = (invert) -> (files, patterns, cb) -> async.filter files,
       else
         max = getMaxOfProp 'precedence', pats
         patsOfHighestPrecedence = pats.filter (p) -> p.precedence is max
-        fcb invert isnt (lo.last patsOfHighestPrecedence).negated),
+        fcb (lo.last patsOfHighestPrecedence).negated),
   (results) -> cb null, patterns, results
 
 splitFilesDirectories = (patterns, nextFiles, cb) ->
@@ -174,7 +173,7 @@ splitFilesDirectories = (patterns, nextFiles, cb) ->
 
 mapToProperty = (prop, l) -> l.map (it) -> it[prop]
 
-recurseIgnore = ({invert, ignoreFileObjs}, dir, cb) ->
+recurseIgnore = ({ignoreFileObjs}, dir, cb) ->
   (err, opts) ->
     {
       files: matchFiles
@@ -186,7 +185,7 @@ recurseIgnore = ({invert, ignoreFileObjs}, dir, cb) ->
       when 0 then cb null, {files: matchFiles, dirs: []}
       else async.map matchDirs,
         ((matchedDir, mcb) ->
-          getTracked matchedDir, {invert, ignoreFileObjs, patterns},
+          getTracked matchedDir, {ignoreFileObjs, patterns},
             (err, res) -> if err then mcb err else mcb null, {matchedDir, res}),
         (err, results) ->
           if err then cb err
@@ -207,7 +206,6 @@ optionalOpts = (fun) -> (arg, opts, cb) ->
 
 getTracked = optionalOpts (dir, opts = {}, cb) ->
   {
-    invert = no                         # immutable
     ignoreFileObjs = defaultIgnoreFiles # immutable
     patterns = defaultPatterns dir      # added to on each recursion
   } = opts
@@ -219,9 +217,9 @@ getTracked = optionalOpts (dir, opts = {}, cb) ->
     (files, ignorePatternsFromDir, wcb) ->
       patterns = patterns.concat ignorePatternsFromDir
       wcb null, files, patterns
-    applyPatterns invert
+    applyPatterns
     splitFilesDirectories],
-    recurseIgnore {invert, ignoreFileObjs}, dir, cb
+    recurseIgnore {ignoreFileObjs}, dir, cb
 
 module.exports = {
   getTracked
