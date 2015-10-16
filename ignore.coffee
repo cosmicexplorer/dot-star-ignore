@@ -58,59 +58,69 @@ ignorePatternFromIgnoreLine = (line) ->
 
 regexFromWildcard = (pattern) ->
   inBraces = no
-  pattern.replace /((?:\\\\)*)(\\?)((?:\*|\[|\||\(|\)|\.|\+|\?|\$|\{|\}|,)+)/g,
-  (res, backslashes, beforeBackslash, controlChars, offset, curPat) ->
-    final = backslashes
-    if beforeBackslash
-      final += lo.escapeRegExp controlChars[0]
-      controlChars = controlChars[1..]
-    skipNext = no
-    final += (for cchar, i in controlChars
-      if skipNext
-        skipNext = no
-        continue
-      afterChar = if i < controlChars.length - 1
-          controlChars[i + 1]
-        else null
-      switch cchar
-        when '*'
-          if afterChar is '*'
-            skipNext = yes
-            '.*'
-          else "[^/]*"
-        when '['
-          if afterChar is '^'
-            skipNext = yes
-            '[^'
-          else '['
-        when '{'
-          braceIndex = curPat.indexOf '}', offset
-          if braceIndex is -1 then lo.escapeRegExp '{'
-          else
-            inBraces = yes
-            '('
-        when ','
-          if inBraces then '|' else ','
-        when '}'
-          if inBraces
-            inBraces = no
-            ')'
-          else lo.escapeRegExp '}'
-        else lo.escapeRegExp cchar).join ''
-    final
+  fin = pattern.replace(
+    /((?:\\\\)*)(\\?)((?:\*|\[|\||\(|\)|\.|\+|\?|\$|\{|\}|,)+)/g,
+    (res, backslashes, beforeBackslash, controlChars, offset, curPat) ->
+      final = backslashes
+      if beforeBackslash
+        final += lo.escapeRegExp controlChars[0]
+        controlChars = controlChars[1..]
+      skipNext = no
+      final += (for cchar, i in controlChars
+        if skipNext
+          skipNext = no
+          continue
+        afterChar = if i < controlChars.length - 1
+            controlChars[i + 1]
+          else null
+        switch cchar
+          when '*'
+            if afterChar is '*'
+              skipNext = yes
+              '.*'
+            else "[^#{path.sep}]*"
+          when '['
+            if afterChar is '^'
+              skipNext = yes
+              '[^'
+            else '['
+          when '{'
+            braceIndex = curPat.indexOf '}', offset
+            if braceIndex is -1 then lo.escapeRegExp '{'
+            else
+              inBraces = yes
+              '('
+          when ','
+            if inBraces then '|' else ','
+          when '}'
+            if inBraces
+              inBraces = no
+              ')'
+            else lo.escapeRegExp '}'
+          else lo.escapeRegExp cchar).join ''
+      final)
+  "^#{fin}$"
 
 fileDeeperThanDir = (file, dir) ->
   (path.dirname path.relative dir, file) isnt '.'
+
+getRelativePathSequence = (dir, file) ->
+  dirPaths = (path.relative dir, file).split path.sep
+  dirPaths[-i..].join path.sep for _, i in dirPaths
 
 class IgnorePattern
   constructor: ({@pattern, @precedence, @dir}) ->
     {@reg, @negated, @recursive, @needsDirectory} =
       ignorePatternFromIgnoreLine @pattern
-  matches: (file, cb) -> switch
-    when not file.match @reg then cb no
-    when (fileDeeperThanDir file, @dir) and not @recursive then cb no
-    when @needsDirectory then getIsntDirectoryWaterfall file, cb, yes
-    else cb yes
+    console.log @reg
+  matches: (file, cb) ->
+    f = path.basename file
+    pathSeqs = getRelativePathSequence @dir, file
+    switch
+      when not (p.match @reg for p in pathSeqs).some(boolify) then cb no
+      when (fileDeeperThanDir file, @dir) and not @recursive then cb no
+      when @needsDirectory then getIsntDirectoryWaterfall file, cb, yes
+      else cb yes
 
 defaultIgnoreFiles = [new IgnoreFile '.gitignore', 0]
 defaultPatterns = (dir) -> [new IgnorePattern
@@ -185,9 +195,12 @@ recurseIgnore = ({invert, ignoreFileObjs}, dir, cb) ->
             flattened = mapToProperty 'res', results
             cleanedDirs = cleanedDirs.concat mapToProperty 'dirs', flattened
             cleanedFiles = mapToProperty 'files', flattened
+            trackedFiles = lo.uniq lo.flatten matchFiles.concat cleanedFiles
+            dirsWithFiles = (lo.uniq lo.flatten cleanedDirs).filter (dir) ->
+              trackedFiles.some (f) -> f.startsWith dir
             cb null,
-              files: lo.uniq lo.flatten matchFiles.concat cleanedFiles
-              dirs: lo.uniq lo.flatten cleanedDirs
+              files: trackedFiles
+              dirs: dirsWithFiles
 
 optionalOpts = (fun) -> (arg, opts, cb) ->
   if typeof opts is 'function' then fun arg, null, opts else fun arg, opts, cb
@@ -213,6 +226,7 @@ getTracked = optionalOpts (dir, opts = {}, cb) ->
 module.exports = {
   getTracked
   IgnoreFile
+  getRelativePathSequence
   IgnorePattern
   regexFromIgnore
   defaultIgnoreFiles
