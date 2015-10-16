@@ -57,22 +57,47 @@ ignorePatternFromIgnoreLine = (line) ->
   {negated, recursive, needsDirectory, reg}
 
 regexFromWildcard = (pattern) ->
-  pattern.replace /((?:\\\\)*)(\\?)((?:\*|\[|\||\(|\)|\.|\+|\?|\$)+)/g,
-  (res, backslashes, beforeBackslash, controlChars) ->
+  inBraces = no
+  pattern.replace /((?:\\\\)*)(\\?)((?:\*|\[|\||\(|\)|\.|\+|\?|\$|\{|\}|,)+)/g,
+  (res, backslashes, beforeBackslash, controlChars, offset, curPat) ->
     final = backslashes
     if beforeBackslash
-      final += "\\#{controlChars[0]}"
+      final += lo.escapeRegExp controlChars[0]
       controlChars = controlChars[1..]
+    skipNext = no
     final += (for cchar, i in controlChars
+      if skipNext
+        skipNext = no
+        continue
       afterChar = if i < controlChars.length - 1
-        controlChars[i + 1]
+          controlChars[i + 1]
         else null
       switch cchar
         when '*'
-          if afterChar is '*' then '.*'
-          else "[^/]*#{afterChar}"
-        when '.' then "\\.#{afterChar}"
-        else beforeBackslash + cchar + afterChar).join ''
+          if afterChar is '*'
+            skipNext = yes
+            '.*'
+          else "[^/]*"
+        when '['
+          if afterChar is '^'
+            skipNext = yes
+            '[^'
+          else '['
+        when '{'
+          braceIndex = curPat.indexOf '}', offset
+          if braceIndex is -1 then lo.escapeRegExp '{'
+          else if (controlChars.indexOf '}', i) isnt -1 then lo.escapeRegExp '{'
+          else
+            inBraces = yes
+            '('
+        when ','
+          if inBraces then '|' else ','
+        when '}'
+          if inBraces
+            inBraces = no
+            ')'
+          else lo.escapeRegExp '}'
+        else lo.escapeRegExp cchar).join ''
     final
 
 fileDeeperThanDir = (file, dir) ->
