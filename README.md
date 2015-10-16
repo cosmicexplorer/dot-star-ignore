@@ -91,7 +91,7 @@ To ignore a file named `ignore_me` (in addition to any patterns given in `.gitig
 ```javascript
 var ignore = require('dot-star-ignore');
 var newIgnorePattern = new ignore.IgnorePattern({
-  pattern: '/ignore_me',
+  pattern: 'ignore_me',
   precedence: 0,
   dir: '.'
 });
