@@ -228,7 +228,7 @@ module.exports = {
   IgnoreFile
   getRelativePathSequence
   IgnorePattern
-  regexFromIgnore
+  regexFromWildcard
   defaultIgnoreFiles
   defaultPatterns
 }

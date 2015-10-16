@@ -25,7 +25,7 @@ function getTracked(dir, [options,] callback) {
   - `ignoreFiles`: array of `IgnoreFile` objects, which are specified [below](#ignorefile).
     - defaults to `[new IgnoreFile('.gitignore', 0)]`.
   - `patterns`: array of `IgnorePattern` objects, which are specified [below](#ignorepattern).
-    - defaults to `[new IgnorePattern('.git', 0, true)]`.
+    - defaults to `[new IgnorePattern('.git', 0, '.')]`.
 - `callback(err, results)`: bubbles up all `fs` errors, returns matched files and directories.
 
 Returns object with keys `files` and `dirs`, containing the files and directories tracked (or not, if you use `invert`) by git (or whatever `ignoreFiles` you specify).
@@ -71,23 +71,17 @@ This class represents a pattern drawn from a `.gitignore`-like file. It creates 
 new IgnorePattern({
   pattern: // string
   precedence: // integer
-  negated: // boolean
   dir: // string
-  recursive: // boolean
-  needsDirectory: // boolean
 })
 ```
 
 - `pattern`: wildcard pattern, taken relative to the directory of the file the pattern was found in.
 - `precedence`: as in `IgnoreFile`.
-- `negated`: whether the pattern had a `!` at front in the ignore file.
 - `dir`: base directory where pattern takes effect.
-- `recursive`: whether the pattern is supposed to take effect for directories below `dir`.
-- `needsDirectory`: whether the pattern only applies to directories.
 
 ### Git Default
 
-The default option for this is contained in `require('dot-star-ignore').defaultPatterns`, which is equivalent to `[new IgnorePattern('.git', 0, true)]`.
+The default option for this is contained in `require('dot-star-ignore').defaultPatterns`, which is equivalent to `[new IgnorePattern('.git', 0, '.')]`.
 
 ### Usage Notes
 
@@ -98,12 +92,9 @@ To ignore a file named `ignore_me` (in addition to any patterns given in `.gitig
 ```javascript
 var ignore = require('dot-star-ignore');
 var newIgnorePattern = new ignore.IgnorePattern({
-  pattern: 'ignore_me',
+  pattern: '/ignore_me',
   precedence: 0,
-  negated: false,
-  dir: '.',
-  recursive: true,
-  needsDirectory: false
+  dir: '.'
 });
 var ignorePatterns = ignore.defaultPatterns.concat(newIgnorePattern);
 ignore.getTracked(<dir>, {patterns: ignorePatterns}, <callback>);
@@ -111,14 +102,31 @@ ignore.getTracked(<dir>, {patterns: ignorePatterns}, <callback>);
 
 # Auxiliary Functions
 
+## getRelativePathSequence
+
 ```javascript
-function regexFromIgnore(pattern, flags) {
+function getRelativePathSequence(dir, file) {
+```
+
+- `dir`: directory to take relative path from.
+- `file`: file to take relative path to.
+
+Return an array of paths concatenating sections of the path, from the end, in no particular order. For example:
+
+```javascript
+getRelativePathSequence('.', 'foo/bar/baz');
+// => [ 'foo/bar/baz', 'baz', 'bar/baz' ]
+```
+
+## regexFromWildcard
+
+```javascript
+function regexFromWildcard(pattern) {
 ```
 
 - `pattern`: wildcard pattern to create a regular expression from.
-- `flags`: flags used in `RegExp` constructor.
 
-Auxiliary function used internally to convert a wildcard pattern into a regex for the same pattern.
+Convert a wildcard pattern into a regex for files matching the given wildcard pattern. Returns a string suitable for conversion into a `RegExp` object. Supports everything `bash` does.
 
 # License
 
