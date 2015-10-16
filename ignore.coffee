@@ -152,7 +152,7 @@ getNewPatterns = (dir) -> (files, ignoreFilesFromDir, cb) ->
       try
         pats = ignoreFileObj.toIgnorePatterns dir, res.toString()
         mcb null, pats
-      catch err then mcb S.invalidIgnorePattern file, err),
+      catch err then mcb "Invalid ignore pattern in #{file}:\n#{err.message}"),
     (err, res) -> cb err, files, lo.flatten res
 
 getMaxOfProp = (prop, arr) ->
