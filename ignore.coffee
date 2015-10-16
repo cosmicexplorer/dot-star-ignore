@@ -44,18 +44,6 @@ initNegateRegex = /^!/g
 initRecursiveRegex = /^\//g
 finDirRegex = /\/\s*$/g
 
-ignorePatternFromIgnoreLine = (line) ->
-  negated = boolify line.match initNegateRegex
-  line = line.replace initNegateRegex, ''
-  recursive = not line.match initRecursiveRegex
-  line = line.replace initRecursiveRegex, ''
-  needsDirectory = boolify line.match finDirRegex
-  line = line.replace finDirRegex, ''
-  # braces aren't allowed in .gitignore files, so escape
-  line = line.replace /\{|\}/g, (res) -> "\\#{res}"
-  reg = regexFromWildcard line
-  {negated, recursive, needsDirectory, reg}
-
 regexFromWildcard = (pattern) ->
   inBraces = no
   fin = pattern.replace(
@@ -101,6 +89,22 @@ regexFromWildcard = (pattern) ->
       final)
   "^#{fin}$"
 
+ignorePatternFromIgnoreLine = (line) ->
+  negated = boolify line.match initNegateRegex
+  line = line.replace initNegateRegex, ''
+  recursive = not line.match initRecursiveRegex
+  line = line.replace initRecursiveRegex, ''
+  needsDirectory = boolify line.match finDirRegex
+  line = line.replace finDirRegex, ''
+  # braces aren't allowed in .gitignore files, so escape
+  line = line.replace /\{|\}/g, (res) -> "\\#{res}"
+  reg = regexFromWildcard line
+  negReg = reg[..-2] + '(\\/.*)?$'
+  reg = new RegExp reg, 'g'
+  negReg = new RegExp negReg, 'g'
+  console.log [reg, negReg]
+  {negated, recursive, needsDirectory, reg, negReg}
+
 fileDeeperThanDir = (file, dir) ->
   (path.dirname path.relative dir, file) isnt '.'
 
@@ -110,13 +114,19 @@ getRelativePathSequence = (dir, file) ->
 
 class IgnorePattern
   constructor: ({@pattern, @precedence, @dir}) ->
-    {@reg, @negated, @recursive, @needsDirectory} =
+    {@reg, @negReg, @negated, @recursive, @needsDirectory} =
       ignorePatternFromIgnoreLine @pattern
-  matches: (file, cb) ->
-    f = path.basename file
+  matches: (file, invert, cb) ->
     pathSeqs = getRelativePathSequence @dir, file
-    switch
-      when not (p.match @reg for p in pathSeqs).some(boolify) then cb no
+    reg = if invert then @negReg else @reg
+    matchesPat = (p.match reg for p in pathSeqs).some boolify
+    if invert then switch
+      when not matchesPat then cb no
+      when (fileDeeperThanDir file, @dir) and not @recursive then cb yes
+      when @needsDirectory then cb yes
+      else cb yes
+    else switch
+      when not matchesPat then cb no
       when (fileDeeperThanDir file, @dir) and not @recursive then cb no
       when @needsDirectory then getIsntDirectoryWaterfall file, cb, yes
       else cb yes
@@ -151,15 +161,15 @@ getMaxOfProp = (prop, arr) ->
     if el[prop] > max then max = el[prop]
   max
 
-applyPatterns = (files, patterns, cb) -> async.filter files,
+applyPatterns = (invert) -> (files, patterns, cb) -> async.filter files,
   ((file, fcb) -> async.filter patterns,
-    ((pat, fcb2) -> pat.matches file, fcb2),
+    ((pat, fcb2) -> pat.matches file, invert, fcb2),
     (pats) ->
-      if pats.length is 0 then fcb yes
+      if pats.length is 0 then fcb not invert
       else
         max = getMaxOfProp 'precedence', pats
         patsOfHighestPrecedence = pats.filter (p) -> p.precedence is max
-        fcb (lo.last patsOfHighestPrecedence).negated),
+        fcb invert isnt (lo.last patsOfHighestPrecedence).negated),
   (results) -> cb null, patterns, results
 
 splitFilesDirectories = (patterns, nextFiles, cb) ->
@@ -173,7 +183,7 @@ splitFilesDirectories = (patterns, nextFiles, cb) ->
 
 mapToProperty = (prop, l) -> l.map (it) -> it[prop]
 
-recurseIgnore = ({ignoreFileObjs}, dir, cb) ->
+recurseIgnore = ({invert, ignoreFileObjs}, dir, cb) ->
   (err, opts) ->
     {
       files: matchFiles
@@ -185,7 +195,7 @@ recurseIgnore = ({ignoreFileObjs}, dir, cb) ->
       when 0 then cb null, {files: matchFiles, dirs: []}
       else async.map matchDirs,
         ((matchedDir, mcb) ->
-          getTracked matchedDir, {ignoreFileObjs, patterns},
+          getTracked matchedDir, {invert, ignoreFileObjs, patterns},
             (err, res) -> if err then mcb err else mcb null, {matchedDir, res}),
         (err, results) ->
           if err then cb err
@@ -206,6 +216,7 @@ optionalOpts = (fun) -> (arg, opts, cb) ->
 
 getTracked = optionalOpts (dir, opts = {}, cb) ->
   {
+    invert = no                         # immutable
     ignoreFileObjs = defaultIgnoreFiles # immutable
     patterns = defaultPatterns dir      # added to on each recursion
   } = opts
@@ -217,9 +228,9 @@ getTracked = optionalOpts (dir, opts = {}, cb) ->
     (files, ignorePatternsFromDir, wcb) ->
       patterns = patterns.concat ignorePatternsFromDir
       wcb null, files, patterns
-    applyPatterns
+    applyPatterns invert
     splitFilesDirectories],
-    recurseIgnore {ignoreFileObjs}, dir, cb
+    recurseIgnore {invert, ignoreFileObjs}, dir, cb
 
 module.exports = {
   getTracked
