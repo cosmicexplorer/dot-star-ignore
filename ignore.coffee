@@ -86,7 +86,6 @@ regexFromWildcard = (pattern) ->
         when '{'
           braceIndex = curPat.indexOf '}', offset
           if braceIndex is -1 then lo.escapeRegExp '{'
-          else if (controlChars.indexOf '}', i) isnt -1 then lo.escapeRegExp '{'
           else
             inBraces = yes
             '('
@@ -106,7 +105,7 @@ fileDeeperThanDir = (file, dir) ->
 class IgnorePattern
   constructor: ({@pattern, @precedence, @dir}) ->
     {@reg, @negated, @recursive, @needsDirectory} =
-      ignorePatternFromIgnoreLine pattern
+      ignorePatternFromIgnoreLine @pattern
   matches: (file, cb) -> switch
     when not file.match @reg then cb no
     when (fileDeeperThanDir file, @dir) and not @recursive then cb no
@@ -115,12 +114,9 @@ class IgnorePattern
 
 defaultIgnoreFiles = [new IgnoreFile '.gitignore', 0]
 defaultPatterns = (dir) -> [new IgnorePattern
-  pattern: '.git'
+  pattern: '.git/'
   precedence: 0
-  negated: no
-  dir: dir
-  recursive: no
-  needsDirectory: yes]
+  dir: dir]
 
 getNewIgnoreFiles = (dir, ignoreFileObjs) -> (files, cb) ->
   files = files.map (f) -> path.join dir, f
