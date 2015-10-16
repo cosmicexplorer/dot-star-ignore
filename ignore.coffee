@@ -4,12 +4,11 @@ path = require 'path'
 lo = require 'lodash'
 async = require 'async'
 
-negateRegex = /^!/g
-nonRecursiveRegex = /^!?\//g
-negateOrNonRecursiveRegex = /^(!|\/)\/?/g
-commentRegex = /^#/g
-directoryRegex = /\/$/g
-nonSpaceRegex = /[^\s]/g
+# utilities
+compose = (target, funs...) ->
+  target = fun target for fun in funs
+  target
+boolify = (res) -> if res then yes else no
 
 getIsntDirectoryWaterfall = (f, fcb, negate) ->
   async.waterfall [
@@ -18,6 +17,10 @@ getIsntDirectoryWaterfall = (f, fcb, negate) ->
       res = stats.isDirectory()
       wcb null, (if negate then res else not res)],
     (err, res) -> if err then fcb no else fcb res
+
+# ignore file manipulation
+commentRegex = /^\s*#/g
+nonSpaceRegex = /[^\s]/g
 
 class IgnoreFile
   constructor: (@name, @precedence) ->
@@ -28,33 +31,57 @@ class IgnoreFile
       getIsntDirectoryWaterfall,
       (res) => cb null, res.map (file) => {file, ignoreFileObj: @}
   toIgnorePatterns: (dir, contents) ->
-    contents.split('\n').map((line) -> line.trim())
+    contents.split('\n')
       .filter((line) -> not line.match commentRegex)
       .filter((line) -> line.match nonSpaceRegex)
       .map (line) => new IgnorePattern
-        pattern: line.replace(negateOrNonRecursiveRegex, "").replace(
-          directoryRegex, "")
+        pattern: line
         precedence: @precedence
-        negated: if (line.match negateRegex) then yes else no
         dir: dir
-        recursive: (not line.match nonRecursiveRegex)
-        needsDirectory: if (line.match directoryRegex) then yes else no
 
-regexFromIgnore = (pattern, flags) ->
-  pattern = pattern.replace(negateOrNonRecursiveRegex, "")
-    .replace(directoryRegex, "")
-  new RegExp ('^' + pattern.split('').map((c) -> switch c
-    when '*' then '.*'
-    when '[', ']' then c
-    else lo.escapeRegExp c).join('') + '$'), flags
+# wildcard -> regex processing
+initNegateRegex = /^!/g
+initRecursiveRegex = /^\//g
+finDirRegex = /\/\s*$/g
+
+ignorePatternFromIgnoreLine = (line) ->
+  negated = boolify line.match initNegateRegex
+  line = line.replace initNegateRegex, ''
+  recursive = not line.match initRecursiveRegex
+  line = line.replace initRecursiveRegex, ''
+  needsDirectory = boolify line.match finDirRegex
+  line = line.replace finDirRegex, ''
+  # braces aren't allowed in .gitignore files, so escape
+  line = line.replace /\{|\}/g, (res) -> "\\#{res}"
+  reg = regexFromWildcard line
+  {negated, recursive, needsDirectory, reg}
+
+regexFromWildcard = (pattern) ->
+  pattern.replace /((?:\\\\)*)(\\?)((?:\*|\[|\||\(|\)|\.|\+|\?|\$)+)/g,
+  (res, backslashes, beforeBackslash, controlChars) ->
+    final = backslashes
+    if beforeBackslash
+      final += "\\#{controlChars[0]}"
+      controlChars = controlChars[1..]
+    final += (for cchar, i in controlChars
+      afterChar = if i < controlChars.length - 1
+        controlChars[i + 1]
+        else null
+      switch cchar
+        when '*'
+          if afterChar is '*' then '.*'
+          else "[^/]*#{afterChar}"
+        when '.' then "\\.#{afterChar}"
+        else beforeBackslash + cchar + afterChar).join ''
+    final
 
 fileDeeperThanDir = (file, dir) ->
   (path.dirname path.relative dir, file) isnt '.'
 
 class IgnorePattern
-  constructor: ({@pattern, @precedence, @negated, @dir, @recursive,
-    @needsDirectory}) ->
-    @reg = regexFromIgnore (path.join @dir, @pattern), 'g'
+  constructor: ({@pattern, @precedence, @dir}) ->
+    {@reg, @negated, @recursive, @needsDirectory} =
+      ignorePatternFromIgnoreLine pattern
   matches: (file, cb) -> switch
     when not file.match @reg then cb no
     when (fileDeeperThanDir file, @dir) and not @recursive then cb no
@@ -82,8 +109,10 @@ getNewPatterns = (dir) -> (files, ignoreFilesFromDir, cb) ->
   async.map newIgnoreFiles, (({file, ignoreFileObj}, mcb) ->
     fs.readFile file, (err, res) -> if err then mcb err
     else
-      pats = ignoreFileObj.toIgnorePatterns dir, res.toString()
-      mcb null, pats),
+      try
+        pats = ignoreFileObj.toIgnorePatterns dir, res.toString()
+        mcb null, pats
+      catch err then mcb S.invalidIgnorePattern file, err),
     (err, res) -> cb err, files, lo.flatten res
 
 getMaxOfProp = (prop, arr) ->
